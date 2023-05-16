@@ -5,14 +5,28 @@ function BoardState(mask, board, isBlackTurn) {
     this.isBlackTurn = isBlackTurn;
 }
 
+function new_game() {
+    var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
+    var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
+    var isBlackTurn = true; // Starting turn indicator
+
+    return new BoardState(startingMask, startingBoard, isBlackTurn);
+}
+
+var boardState = new_game();
+var game_over = false;
+
 function updateTurnIndicator() {
     var turnIndicator = document.getElementById("turn_indicator");
 
     setInterval(function () {
-        if (boardState.isBlackTurn) {
+        if (game_over) {
+            turnIndicator.textContent = "Game over!";
+        } else if (boardState.isBlackTurn) {
             turnIndicator.textContent = "Black to move";
         } else {
             turnIndicator.textContent = "White to move";
+            chooseRandomMove(boardState);
         }
     }, 1000);
 }
@@ -24,14 +38,6 @@ function removePieceSpaces() {
         var space = pieceSpaces[i];
         space.parentNode.removeChild(space);
     }
-}
-
-function new_game() {
-    var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
-    var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
-    var isBlackTurn = true; // Starting turn indicator
-
-    return new BoardState(startingMask, startingBoard, isBlackTurn);
 }
 
 function getLegalMoves(boardState) {
@@ -107,6 +113,23 @@ function getFlipsForMove(boardState, move) {
     return flips;
 }
 
+function chooseRandomMove(boardState) {
+    const legalMoves = getLegalMoves(boardState);
+
+    if (legalMoves.length === 0) {
+        console.log("No legal moves available.");
+        return;
+    }
+
+    const randomIndex = Math.floor(Math.random() * legalMoves.length);
+    const chosenMove = legalMoves[randomIndex];
+
+    // what power of 2 is chosenMove?
+    const position = Math.log2(parseInt(chosenMove));
+
+    make_move(position + 1);
+}
+
 function addMoveListeners() {
     const legalMoves = document.querySelectorAll('.legal-move');
 
@@ -121,7 +144,6 @@ function addMoveListeners() {
 function make_move(position) {
     const pointer = 1n << BigInt(position - 1);
 
-    const legalMoves = getLegalMoves(boardState);
     const flips = getFlipsForMove(boardState, BigInt(position - 1));
 
     if (flips.length > 0) {
@@ -136,8 +158,6 @@ function make_move(position) {
     }
 }
 
-var boardState = new_game();
-
 function renderBoard(boardState) {
     var board = boardState.board;
     var mask = boardState.mask;
@@ -146,6 +166,17 @@ function renderBoard(boardState) {
     removePieceSpaces();
 
     var moves = getLegalMoves(boardState);
+
+    // if no moves, flip turn
+    if (moves.length === 0) {
+        boardState.isBlackTurn = !boardState.isBlackTurn;
+        moves = getLegalMoves(boardState);
+    }
+
+    // if still no moves, game over
+    if (moves.length === 0) {
+        game_over = true;
+    }
 
     for (var i = 1; i <= 64; i++) {
         const pointer = 1n << BigInt(i - 1);
