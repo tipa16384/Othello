@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Reversi</title>
+    <style>
+        /* CSS styles */
+        body {
+            text-align: center;
+        }
+
+        h1 {
+            margin-top: 50px;
+        }
+
+        #reversi_board {
+            display: flex;
+            flex-wrap: wrap;
+            width: 400px;
+            height: 400px;
+            margin: 50px auto;
+            position: relative;
+        }
+
+        .space {
+            width: 50px;
+            height: 50px;
+            background-color: #8FBC8F;
+            border: 1px solid #000;
+            transition: background-color 0.3s;
+        }
+
+        .space:hover {
+            background-color: lightblue;
+            cursor: pointer;
+        }
+
+        .legal-move {
+            opacity: 0.25;
+        }
+
+        /* Black piece class */
+        .piece-black {
+            background-color: #000;
+            border: 1px solid #000;
+            border-radius: 50%;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            margin: 5px;
+        }
+
+        /* White piece class */
+        .piece-white {
+            background-color: #FFF;
+            border: 1px solid #000;
+            border-radius: 50%;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Reversi</h1>
+    <div id="game_container">
+        <div id="reversi_board"></div>
+        <h2 id="turn_indicator">Who's Turn Is It?</h2>
+    </div>
+
+    <script>
+        // BoardState prototype
+        function BoardState(mask, board, isBlackTurn) {
+            this.mask = mask;
+            this.board = board;
+            this.isBlackTurn = isBlackTurn;
+        }
+
+        function updateTurnIndicator() {
+            var turnIndicator = document.getElementById("turn_indicator");
+
+            setInterval(function () {
+                if (boardState.isBlackTurn) {
+                    turnIndicator.textContent = "Black to move";
+                } else {
+                    turnIndicator.textContent = "White to move";
+                }
+            }, 1000);
+        }
+
+        function removePieceSpaces() {
+            var pieceSpaces = document.querySelectorAll(".piece-white, .piece-black");
+
+            for (var i = 0; i < pieceSpaces.length; i++) {
+                var space = pieceSpaces[i];
+                space.parentNode.removeChild(space);
+            }
+        }
+
+        function new_game() {
+            var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
+            var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
+            var isBlackTurn = true; // Starting turn indicator
+
+            return new BoardState(startingMask, startingBoard, isBlackTurn);
+        }
+
+        function getLegalMoves(boardState) {
+            const legalMoves = [];
+
+            const emptySpaces = ~(boardState.mask);
+
+            for (let i = 0; i < 64; i++) {
+                const pointer = 1n << BigInt(i);
+
+                if (emptySpaces & pointer) {
+                    const flips = getFlipsForMove(boardState, BigInt(i));
+
+                    if (flips.length > 0) {
+                        legalMoves.push(pointer);
+                    }
+                }
+            }
+
+            return legalMoves;
+        }
+
+        function getFlipsForMove(boardState, move) {
+            const board = boardState.board;
+            const mask = boardState.mask;
+            const flips = [];
+            const directions = [-9n, -8n, -7n, -1n, 1n, 7n, 8n, 9n];
+
+            for (const direction of directions) {
+                let current = move;
+                let flip = 0n;
+
+                while (true) {
+                    current += direction;
+
+                    if (current < 0n || current >= 64n) {
+                        break;
+                    }
+
+                    var pointer = 1n << current;
+                    if (!(mask & pointer)) {
+                        break;
+                    }
+
+                    var playerMask = boardState.isBlackTurn ? pointer : 0n;
+                    var opponentMask = boardState.isBlackTurn ? 0n : pointer;
+
+                    if ((board & pointer) === opponentMask) {
+                        flip |= pointer;
+                    } else if ((board & pointer) === playerMask) {
+                        if (flip) {
+                            flips.push(flip);
+                        }
+                        break;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            return flips;
+        }
+
+        var boardState = new_game();
+
+        function renderBoard(boardState) {
+            var board = boardState.board;
+            var mask = boardState.mask;
+            var reversiBoard = document.getElementById("reversi_board");
+
+            removePieceSpaces();
+
+            var moves = getLegalMoves(boardState);
+
+            for (var i = 1; i <= 64; i++) {
+                const pointer = 1n << BigInt(i - 1);
+                if ((mask & pointer) || moves.includes(pointer)) {
+                    var space = document.createElement("div");
+                    space.id = "piece_" + i;
+                    space.className = "space";
+
+                    // Check if the space is a legal move and add highlighting class
+                    if (moves.includes(pointer)) {
+                        space.classList.add("legal-move");
+                        if (boardState.isBlackTurn) {
+                            space.classList.add("piece-black");
+                        } else {
+                            space.classList.add("piece-white");
+                        }
+                    } else if (board & pointer) {
+                        space.classList.add("piece-black");
+                    } else {
+                        space.classList.add("piece-white");
+                    }
+
+                    // Calculate position based on row and column
+                    var row = Math.floor((i - 1) / 8);
+                    var col = (i - 1) % 8;
+                    space.style.position = "absolute";
+                    space.style.top = row * 50 + "px";
+                    space.style.left = col * 50 + "px";
+
+                    reversiBoard.appendChild(space);
+                }
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            // Generate game board spaces
+            var reversiBoard = document.getElementById("reversi_board");
+            for (var i = 1; i <= 64; i++) {
+                var space = document.createElement("div");
+                space.id = "space_" + i;
+                space.className = "space";
+
+                // Calculate position based on row and column
+                var row = Math.floor((i - 1) / 8);
+                var col = (i - 1) % 8;
+                space.style.position = "absolute";
+                space.style.top = (row * 50) + "px";
+                space.style.left = (col * 50) + "px";
+
+                // Add click event listener to non-piece spaces
+                space.addEventListener("click", function () {
+                    var maskPosition = 1n << BigInt(parseInt(this.id.split("_")[1]) - 1);
+                    console.log("Clicked space mask:", maskPosition.toString(2));
+                });
+
+                reversiBoard.appendChild(space);
+            }
+
+            renderBoard(boardState);
+            updateTurnIndicator();
+        });
+    </script>
+</body>
+
+</html>
