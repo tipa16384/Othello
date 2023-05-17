@@ -3,6 +3,7 @@ function BoardState(mask, board, isBlackTurn) {
     this.mask = mask;
     this.board = board;
     this.isBlackTurn = isBlackTurn;
+    this.game_over = false;
 }
 
 function new_game() {
@@ -14,13 +15,12 @@ function new_game() {
 }
 
 var boardState = new_game();
-var game_over = false;
 
 function updateTurnIndicator() {
     var turnIndicator = document.getElementById("turn_indicator");
 
     setInterval(function () {
-        if (game_over) {
+        if (boardState.game_over) {
             turnIndicator.textContent = "Game over!";
         } else if (boardState.isBlackTurn) {
             turnIndicator.textContent = "Black to move";
@@ -175,7 +175,7 @@ function renderBoard(boardState) {
 
     // if still no moves, game over
     if (moves.length === 0) {
-        game_over = true;
+        boardState.game_over = true;
     }
 
     for (var i = 1; i <= 64; i++) {
