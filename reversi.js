@@ -6,6 +6,12 @@ function BoardState(mask, board, isBlackTurn) {
     this.game_over = false;
 }
 
+function clone_board_state(boardState) {
+    var bs = new BoardState(boardState.mask, boardState.board, boardState.isBlackTurn);
+    bs.game_over = boardState.game_over;
+    return bs;
+}
+
 function new_game() {
     var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
     var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
@@ -16,20 +22,57 @@ function new_game() {
 
 var boardState = new_game();
 
-function updateTurnIndicator() {
+function updateTurnIndicator(localBoardState) {
     var turnIndicator = document.getElementById("turn_indicator");
 
     setInterval(function () {
-        if (boardState.game_over) {
-            turnIndicator.textContent = "Game over!";
-        } else if (boardState.isBlackTurn) {
+        if (localBoardState.game_over) {
+            turnIndicator.textContent = "Game over!\n" + win_text(localBoardState);
+        } else if (localBoardState.isBlackTurn) {
             turnIndicator.textContent = "Black to move";
         } else {
-            turnIndicator.textContent = "White to move";
-            chooseRandomMove(boardState);
+            turnIndicator.textContent = "White moving randomly...";
+            move = chooseRandomMove(localBoardState);
+            if (move) {
+                make_move(localBoardState, move);
+                renderBoard(localBoardState);
+            }
         }
     }, 1000);
 }
+
+function win_text(localBoardState) {
+    const n = who_won(localBoardState);
+
+    if (n > 0) {
+        return "Black Won!";
+    } else if (n < 0) {
+        return "White Won!";
+    } else {
+        return "It's a Draw!";
+    }
+}
+
+function who_won(localBoardState) {
+    const totalPieces = countSetBits(localBoardState.mask);
+    const blackPieces = countSetBits(localBoardState.board);
+    const whitePieces = totalPieces - blackPieces;
+
+    return blackPieces - whitePieces;
+}
+
+// Helper function to count the number of set bits in a value
+function countSetBits(value) {
+    let count = 0n;
+
+    while (value > 0n) {
+        count += value & 1n;
+        value >>= 1n;
+    }
+
+    return count;
+}
+
 
 function removePieceSpaces() {
     var pieceSpaces = document.querySelectorAll(".piece-white, .piece-black");
@@ -113,12 +156,11 @@ function getFlipsForMove(boardState, move) {
     return flips;
 }
 
-function chooseRandomMove(boardState) {
-    const legalMoves = getLegalMoves(boardState);
+function chooseRandomMove(localBoardState) {
+    const legalMoves = getLegalMoves(localBoardState);
 
     if (legalMoves.length === 0) {
-        console.log("No legal moves available.");
-        return;
+        return null;
     }
 
     const randomIndex = Math.floor(Math.random() * legalMoves.length);
@@ -127,7 +169,123 @@ function chooseRandomMove(boardState) {
     // what power of 2 is chosenMove?
     const position = Math.log2(parseInt(chosenMove));
 
-    make_move(position + 1);
+    return position + 1;
+}
+
+function choose_mcts(boardState) {
+    // Create a tree node for the current state
+    const rootNode = new TreeNode(boardState, null);
+
+    // Perform Monte Carlo Tree Search
+    const numSimulations = 1000; // Adjust the number of simulations as needed
+
+    for (let i = 0; i < numSimulations; i++) {
+        // Select the best child node using UCT (Upper Confidence Bound for Trees)
+        const selectedNode = select(rootNode);
+
+        // return null if no selectedNode
+        if (!selectedNode) {
+            return null;
+        }
+
+        // Expand the selected node by adding a child node
+        const expandedNode = expand(selectedNode);
+
+        // Simulate a random playout from the expanded node
+        const playoutResult = simulate(expandedNode);
+
+        // Update the tree with the playout result
+        backpropagate(expandedNode, playoutResult);
+    }
+
+    // Choose the best move based on the tree search results
+    const bestMove = getBestMove(rootNode);
+
+    // Extract the position from the best move
+    const position = Math.log2(parseInt(bestMove));
+
+    return position + 1;
+}
+
+// Helper functions for MCTS steps (select, expand, simulate, backpropagate, getBestMove)
+
+// Tree node class to represent a state in the Monte Carlo Tree Search
+class TreeNode {
+    constructor(boardState, parent) {
+        this.boardState = boardState;
+        this.parent = parent;
+        this.children = [];
+        this.wins = 0;
+        this.visits = 0;
+        this.untriedMoves = getLegalMoves(boardState);
+    }
+}
+
+// Select the best child node using the UCT formula
+function select(node) {
+    const explorationFactor = Math.sqrt(2); // Exploration factor (adjust as needed)
+
+    let selectedChild = null;
+    let bestScore = Number.NEGATIVE_INFINITY;
+
+    // Iterate over each child node and calculate their UCT scores
+    for (const child of node.children) {
+        const exploitation = child.wins / child.visits;
+        const exploration = Math.sqrt(Math.log(node.visits) / child.visits);
+        const score = exploitation + explorationFactor * exploration;
+
+        if (score > bestScore) {
+            bestScore = score;
+            selectedChild = child;
+        }
+    }
+
+    return selectedChild;
+}
+
+// Expand the selected node by adding a child node for each legal move
+function expand(node) {
+    const untriedMoves = getUntriedMoves(node);
+
+    if (untriedMoves.length > 0) {
+        const randomIndex = Math.floor(Math.random() * untriedMoves.length);
+        const selectedMove = untriedMoves[randomIndex];
+
+        // remove selectedMove from untriedMoves
+        untriedMoves.splice(randomIndex, 1);
+        
+        let newState = clone_board_state(node.boardState);
+        const newStatec = simulateMove(node.state, selectedMove);
+
+        const newNode = new TreeNode(newState, node);
+        node.children.push(newNode);
+
+        return newNode;
+    }
+
+    return null;
+}
+
+// Simulate a random playout from the expanded node until the game ends
+function simulate(node) {
+    // Perform a random playout from the given node until the game ends
+    // ...
+    // Return the playout result (e.g., +1 for a win, 0 for a draw, -1 for a loss)
+    // ...
+}
+
+// Update the tree with the playout result by backpropagating the result to ancestors
+function backpropagate(node, result) {
+    // Update the visit count and win count of the nodes from the given node up to the root
+    // ...
+}
+
+// Choose the best move based on the tree search results
+function getBestMove(node) {
+    // Determine the best move based on the highest win rate among child nodes
+    // ...
+    // Return the best move (board mask) from the selected child node
+    // ...
 }
 
 function addMoveListeners() {
@@ -136,25 +294,24 @@ function addMoveListeners() {
     legalMoves.forEach(move => {
         move.addEventListener('click', function () {
             const position = parseInt(move.id.split('_')[1]);
-            make_move(position);
+            make_move(boardState, position);
+            renderBoard(boardState);
         });
     });
 }
 
-function make_move(position) {
+function make_move(localBoardState, position) {
     const pointer = 1n << BigInt(position - 1);
 
-    const flips = getFlipsForMove(boardState, BigInt(position - 1));
+    const flips = getFlipsForMove(localBoardState, BigInt(position - 1));
 
     if (flips.length > 0) {
-        boardState.board ^= flips.reduce((a, b) => a | b);
-        boardState.mask |= pointer;
-        if (boardState.isBlackTurn) {
-            boardState.board |= pointer;
+        localBoardState.board ^= flips.reduce((a, b) => a | b);
+        localBoardState.mask |= pointer;
+        if (localBoardState.isBlackTurn) {
+            localBoardState.board |= pointer;
         }
-        boardState.isBlackTurn = !boardState.isBlackTurn;
-
-        renderBoard(boardState);
+        localBoardState.isBlackTurn = !localBoardState.isBlackTurn;
     }
 }
 
@@ -231,12 +388,11 @@ document.addEventListener("DOMContentLoaded", function () {
         // Add click event listener to non-piece spaces
         space.addEventListener("click", function () {
             var maskPosition = 1n << BigInt(parseInt(this.id.split("_")[1]) - 1);
-            console.log("Clicked space mask:", maskPosition.toString(2));
         });
 
         reversiBoard.appendChild(space);
     }
 
     renderBoard(boardState);
-    updateTurnIndicator();
+    updateTurnIndicator(boardState);
 });
