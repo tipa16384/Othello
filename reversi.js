@@ -255,7 +255,7 @@ function expand(node) {
         untriedMoves.splice(randomIndex, 1);
         
         let newState = clone_board_state(node.boardState);
-        const newStatec = simulateMove(node.state, selectedMove);
+        make_move(newState, selectedMove);
 
         const newNode = new TreeNode(newState, node);
         node.children.push(newNode);
