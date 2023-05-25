@@ -6,6 +6,10 @@ function BoardState(mask, board, isBlackTurn) {
     this.game_over = false;
 }
 
+let computerPlayer = null;
+let computerStrategy = null;
+let strategyList = [ { strategy: chooseRandomMove, name: "randomly" }, { strategy: chooseGreedyMove, name: "greedily"}]
+
 function clone_board_state(boardState) {
     var bs = new BoardState(boardState.mask, boardState.board, boardState.isBlackTurn);
     bs.game_over = boardState.game_over;
@@ -16,6 +20,11 @@ function new_game() {
     var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
     var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
     var isBlackTurn = true; // Starting turn indicator
+
+    // choose strategy randomly from strategyList
+    let strategy = strategyList[Math.floor(Math.random() * strategyList.length)];
+    computerStrategy = strategy.name;
+    computerPlayer = strategy.strategy;
 
     return new BoardState(startingMask, startingBoard, isBlackTurn);
 }
@@ -31,8 +40,8 @@ function updateTurnIndicator(localBoardState) {
         } else if (localBoardState.isBlackTurn) {
             turnIndicator.textContent = "Black to move";
         } else {
-            turnIndicator.textContent = "White moving randomly...";
-            move = chooseRandomMove(localBoardState);
+            turnIndicator.textContent = "White moving " + computerStrategy;
+            move = computerPlayer(localBoardState);
             if (move) {
                 make_move(localBoardState, move);
                 renderBoard(localBoardState);
@@ -156,6 +165,7 @@ function getFlipsForMove(boardState, move) {
     return flips;
 }
 
+// this player chooses a random move from the list of all legal moves
 function chooseRandomMove(localBoardState) {
     const legalMoves = getLegalMoves(localBoardState);
 
@@ -170,6 +180,38 @@ function chooseRandomMove(localBoardState) {
     const position = Math.log2(parseInt(chosenMove));
 
     return position + 1;
+}
+
+// this player chooses the move with the most flips
+function chooseGreedyMove(localBoardState) {
+    const legalMoves = getLegalMoves(localBoardState);
+
+    if (legalMoves.length === 0) {
+        return null;
+    }
+
+    let bestFlips = 0n;
+    let bestMove = null;
+
+    // for each move in legalMoves, call getFlipsForMove
+    // return the move with the most flips
+    for (let i = 0; i < legalMoves.length; i++) {
+        const move = Math.log2(parseInt(legalMoves[i]));
+        const flips = getFlipsForMove(localBoardState, BigInt(move));
+        // let totalFlips be the sum of all the countSetBits in flips
+        // return the move with the most flips
+        let totalFlips = 0n;
+        for (let j = 0; j < flips.length; j++) {
+            totalFlips += countSetBits(flips[j]);
+        }
+
+        if (totalFlips > bestFlips) {
+            bestFlips = totalFlips;
+            bestMove = move;
+        }
+    }
+
+    return bestMove + 1;
 }
 
 function choose_mcts(boardState) {
