@@ -8,7 +8,9 @@ function BoardState(mask, board, isBlackTurn) {
 
 let computerPlayer = null;
 let computerStrategy = null;
-let strategyList = [ { strategy: chooseRandomMove, name: "randomly" }, { strategy: chooseGreedyMove, name: "greedily"}]
+let strategyList = [{ strategy: chooseRandomMove, name: "randomly" },
+{ strategy: chooseGreedyMove, name: "greedily" },
+{ strategy: choose_mcts, name: "using MCTS" }]
 
 function clone_board_state(boardState) {
     var bs = new BoardState(boardState.mask, boardState.board, boardState.isBlackTurn);
@@ -23,6 +25,9 @@ function new_game() {
 
     // choose strategy randomly from strategyList
     let strategy = strategyList[Math.floor(Math.random() * strategyList.length)];
+
+    // force MCTS strategy
+    strategy = strategyList[2];
     computerStrategy = strategy.name;
     computerPlayer = strategy.strategy;
 
@@ -216,50 +221,48 @@ function chooseGreedyMove(localBoardState) {
 
 function choose_mcts(boardState) {
     // Create a tree node for the current state
-    const rootNode = new TreeNode(boardState, null);
+    const rootNode = new TreeNode(boardState, null, null);
 
     // Perform Monte Carlo Tree Search
-    const numSimulations = 1000; // Adjust the number of simulations as needed
+    const numSimulations = 2000; // Adjust the number of simulations as needed
 
     for (let i = 0; i < numSimulations; i++) {
-        // Select the best child node using UCT (Upper Confidence Bound for Trees)
-        const selectedNode = select(rootNode);
+        //console.log("Simulation " + i);
 
-        // return null if no selectedNode
-        if (!selectedNode) {
-            return null;
+        let selectedNode = rootNode;
+
+        while (selectedNode.untriedMoves.length === 0 && selectedNode.children.length > 0) {
+            selectedNode = select(selectedNode);
         }
 
-        // Expand the selected node by adding a child node
-        const expandedNode = expand(selectedNode);
+        while (selectedNode.untriedMoves.length > 0) {
+            selectedNode = expand(selectedNode);
+        }
 
         // Simulate a random playout from the expanded node
-        const playoutResult = simulate(expandedNode);
+        const playoutResult = who_won(selectedNode.boardState);
 
         // Update the tree with the playout result
-        backpropagate(expandedNode, playoutResult);
+        backpropagate(selectedNode, playoutResult);
     }
 
     // Choose the best move based on the tree search results
-    const bestMove = getBestMove(rootNode);
-
-    // Extract the position from the best move
-    const position = Math.log2(parseInt(bestMove));
-
-    return position + 1;
+    return getBestMove(rootNode);
 }
 
 // Helper functions for MCTS steps (select, expand, simulate, backpropagate, getBestMove)
 
 // Tree node class to represent a state in the Monte Carlo Tree Search
 class TreeNode {
-    constructor(boardState, parent) {
+    constructor(boardState, parent, move) {
         this.boardState = boardState;
         this.parent = parent;
         this.children = [];
         this.wins = 0;
         this.visits = 0;
         this.untriedMoves = getLegalMoves(boardState);
+        this.move = move;
+        this.passed = false;
     }
 }
 
@@ -287,7 +290,7 @@ function select(node) {
 
 // Expand the selected node by adding a child node for each legal move
 function expand(node) {
-    const untriedMoves = getUntriedMoves(node);
+    const untriedMoves = node.untriedMoves;
 
     if (untriedMoves.length > 0) {
         const randomIndex = Math.floor(Math.random() * untriedMoves.length);
@@ -295,11 +298,14 @@ function expand(node) {
 
         // remove selectedMove from untriedMoves
         untriedMoves.splice(randomIndex, 1);
-        
-        let newState = clone_board_state(node.boardState);
-        make_move(newState, selectedMove);
 
-        const newNode = new TreeNode(newState, node);
+        let newState = clone_board_state(node.boardState);
+
+        // let x = the integer of selectedMove
+        let x = Math.log2(parseInt(selectedMove));
+        make_move(newState, x + 1);
+
+        const newNode = new TreeNode(newState, node, x + 1);
         node.children.push(newNode);
 
         return newNode;
@@ -310,24 +316,53 @@ function expand(node) {
 
 // Simulate a random playout from the expanded node until the game ends
 function simulate(node) {
-    // Perform a random playout from the given node until the game ends
-    // ...
-    // Return the playout result (e.g., +1 for a win, 0 for a draw, -1 for a loss)
-    // ...
+    let passes = 0;
+    const localBoardState = clone_board_state(node.boardState);
+
+    while (passes < 2) {
+        let position = chooseRandomMove(localBoardState);
+        if (position === null) {
+            passes++;
+        } else {
+            passes = 0;
+            make_move(localBoardState, position);
+        }
+    }
+
+    return who_won(localBoardState);
 }
 
 // Update the tree with the playout result by backpropagating the result to ancestors
 function backpropagate(node, result) {
-    // Update the visit count and win count of the nodes from the given node up to the root
-    // ...
+    if (node === null) {
+        return;
+    }
+
+    let localBoardState = node.boardState;
+
+    ++node.visits;
+
+    if (localBoardState.isBlackTurn && result > 0) {
+        ++node.wins;
+    } else if (!localBoardState.isBlackTurn && result < 0) {
+        ++node.wins;
+    }
+
+    backpropagate(node.parent, result);
 }
 
 // Choose the best move based on the tree search results
 function getBestMove(node) {
-    // Determine the best move based on the highest win rate among child nodes
-    // ...
-    // Return the best move (board mask) from the selected child node
-    // ...
+    // get max wins from children
+    let maxWins = Number.NEGATIVE_INFINITY;
+    let bestMove = null;
+    for (const child of node.children) {
+        if (child.visits > maxWins) {
+            maxWins = child.visits;
+            bestMove = child.move;
+        }
+    }
+    return bestMove;
 }
 
 function addMoveListeners() {

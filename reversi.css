@@ -13,14 +13,22 @@ h1 {
     text-shadow: 2px 2px 2px #000;
 }
 
+#boardBoarder {
+    padding: 0 20px;
+    position: relative;
+    margin: 20px auto;
+    width: 400px;
+    /* background color is a diagonal gradient from black to dark gray starting from upper left to lower right */
+    background: linear-gradient(to bottom right, #000, #333);
+}
+
 #reversi_board {
     display: flex;
     flex-wrap: wrap;
     width: 400px;
     height: 400px;
-    margin: 25px auto;
+    /* margin: 20px; */
     position: relative;
-    border: 10px solid black;
 }
 
 #turn_indicator {
@@ -31,6 +39,14 @@ h1 {
     color: #FFF;
     text-shadow: 2px 2px 2px #000;
     font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+}
+
+.letter {
+    color: white;
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    text-align: center;
+    display: inline-block;
+    width: 46px;
 }
 
 .space {
