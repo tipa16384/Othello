@@ -6,11 +6,17 @@ function BoardState(mask, board, isBlackTurn) {
     this.game_over = false;
 }
 
+// function returning the hash of a board state
+BoardState.prototype.hash = function () {
+    return this.mask ^ this.board ^ (this.isBlackTurn ? 1n : 0n);
+}
+
 let computerPlayer = null;
 let computerStrategy = null;
 let strategyList = [{ strategy: chooseRandomMove, name: "randomly" },
 { strategy: chooseGreedyMove, name: "greedily" },
 { strategy: choose_mcts, name: "using MCTS" }]
+let rootNode = null;
 
 function clone_board_state(boardState) {
     var bs = new BoardState(boardState.mask, boardState.board, boardState.isBlackTurn);
@@ -30,6 +36,7 @@ function new_game() {
     strategy = strategyList[2];
     computerStrategy = strategy.name;
     computerPlayer = strategy.strategy;
+    rootNode = null;
 
     return new BoardState(startingMask, startingBoard, isBlackTurn);
 }
@@ -219,15 +226,36 @@ function chooseGreedyMove(localBoardState) {
     return bestMove + 1;
 }
 
+// function to get the root node based on the boardState parameter. 
+// If rootNode is null, create a new TreeNode with the boardState parameter as the boardState. 
+// If it is not null, then do a breadth first search of rootNode to find the board state matching 
+// the hash of the parameter
+function getRootNode(boardState) {
+    if (rootNode !== null) {
+        let newHash = boardState.hash();
+        // for each grandchild of rootNode, if the hash of the grandchild's boardState matches the hash of the parameter, return the grandchild node
+        for (let i = 0; i < rootNode.children.length; i++) {
+            for (let j = 0; j < rootNode.children[i].children.length; j++) {
+                if (rootNode.children[i].children[j].boardState.hash() === newHash) {
+                    return rootNode.children[i].children[j];
+                }
+            }
+        }
+    }
+
+    return new TreeNode(boardState, null, null);
+}
+
 function choose_mcts(boardState) {
+
+    // get current time
+    const startTime = Date.now();
+
     // Create a tree node for the current state
-    const rootNode = new TreeNode(boardState, null, null);
+    rootNode = getRootNode(boardState);
 
-    // Perform Monte Carlo Tree Search
-    const numSimulations = 2000; // Adjust the number of simulations as needed
-
-    for (let i = 0; i < numSimulations; i++) {
-        //console.log("Simulation " + i);
+    // Perform Monte Carlo Tree Search for five seconds
+    while (Date.now() - startTime < 7000) {
 
         let selectedNode = rootNode;
 
@@ -268,7 +296,7 @@ class TreeNode {
 
 // Select the best child node using the UCT formula
 function select(node) {
-    const explorationFactor = Math.sqrt(2); // Exploration factor (adjust as needed)
+    const explorationFactor = 4; // Exploration factor (adjust as needed)
 
     let selectedChild = null;
     let bestScore = Number.NEGATIVE_INFINITY;
@@ -342,9 +370,9 @@ function backpropagate(node, result) {
 
     ++node.visits;
 
-    if (localBoardState.isBlackTurn && result > 0) {
+    if (!localBoardState.isBlackTurn && result > 0) {
         ++node.wins;
-    } else if (!localBoardState.isBlackTurn && result < 0) {
+    } else if (localBoardState.isBlackTurn && result < 0) {
         ++node.wins;
     }
 
@@ -356,12 +384,15 @@ function getBestMove(node) {
     // get max wins from children
     let maxWins = Number.NEGATIVE_INFINITY;
     let bestMove = null;
+    let bestNode = null;
     for (const child of node.children) {
-        if (child.visits > maxWins) {
-            maxWins = child.visits;
+        if (child.wins > maxWins) {
+            maxWins = child.wins;
             bestMove = child.move;
+            bestNode = child;
         }
     }
+    console.log("Best move: " + bestMove + " with " + maxWins + " wins out of " + bestNode.visits + " visits");
     return bestMove;
 }
 
