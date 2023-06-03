@@ -12,6 +12,8 @@ class TreeNode {
     }
 }
 
+let rootNode = null;
+
 function choose_mcts(boardState) {
 
     // get current time

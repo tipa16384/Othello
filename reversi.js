@@ -12,7 +12,6 @@ let playerList = [{ id: "human", name: "You", isHuman: true, eloRating: 1000 },
 { id: "greedy", name: "Dietrich", isHuman: false, eloRating: 1000 },
 { id: "mcts", name: "Monita", isHuman: false, eloRating: 1000 },
 { id: "mobility", name: "Mabel", isHuman: false, eloRating: 1000 }]
-let rootNode = null;
 
 function write_player_list_to_cookies() {
     var playerListString = JSON.stringify(playerList);
@@ -57,6 +56,8 @@ function new_game() {
     while (whitePlayer.isHuman) {
         whitePlayer = playerList[Math.floor(Math.random() * playerList.length)];
     }
+
+    whitePlayer = playerList[3];
 
     // choose strategy from strategyList with same ID as whitePlayer
     for (var i = 0; i < strategyList.length; i++) {
