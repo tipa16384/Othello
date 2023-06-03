@@ -4,36 +4,52 @@
 <head>
     <title>Reversi</title>
     <link rel="stylesheet" href="reversi.css">
+    <script src="boardstate.js"></script>
+    <script src="mobility.js"></script>
+    <script src="basicstrats.js"></script>
+    <script src="mcts.js"></script>
     <script src="reversi.js"></script>
 </head>
 
 <body>
     <h1>Reversi</h1>
-    <div id="game_container">
-        <div id="boardBoarder">
-            <div class="letters">
-                <div class="letter">A</div>
-                <div class="letter">B</div>
-                <div class="letter">C</div>
-                <div class="letter">D</div>
-                <div class="letter">E</div>
-                <div class="letter">F</div>
-                <div class="letter">G</div>
-                <div class="letter">H</div>
-            </div>
-            <div id="reversi_board"></div>
-            <div class="letters">
-                <div class="letter">A</div>
-                <div class="letter">B</div>
-                <div class="letter">C</div>
-                <div class="letter">D</div>
-                <div class="letter">E</div>
-                <div class="letter">F</div>
-                <div class="letter">G</div>
-                <div class="letter">H</div>
+    <div>
+        <div id="game_container">
+            <div id="boardBoarder">
+                <div class="letters">
+                    <div class="letter">A</div>
+                    <div class="letter">B</div>
+                    <div class="letter">C</div>
+                    <div class="letter">D</div>
+                    <div class="letter">E</div>
+                    <div class="letter">F</div>
+                    <div class="letter">G</div>
+                    <div class="letter">H</div>
+                </div>
+                <div id="reversi_board"></div>
+                <div class="letters">
+                    <div class="letter">A</div>
+                    <div class="letter">B</div>
+                    <div class="letter">C</div>
+                    <div class="letter">D</div>
+                    <div class="letter">E</div>
+                    <div class="letter">F</div>
+                    <div class="letter">G</div>
+                    <div class="letter">H</div>
+                </div>
             </div>
         </div>
-        <h2 id="turn_indicator">Whose Turn Is It?</h2>
+        <div id="fun_stuff">
+            <div>
+                <span id="computer_player" class="uxtext">Nobody</span>
+            </div>
+            <div>
+                <span class="uxtext"></span>
+            </div>
+            <div>
+                <span id="turn_indicator" class="uxtext">Current Turn</span>
+            </div>
+        </div>
     </div>
 </body>
 

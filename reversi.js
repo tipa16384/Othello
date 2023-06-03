@@ -1,22 +1,39 @@
-// BoardState prototype
-function BoardState(mask, board, isBlackTurn) {
-    this.mask = mask;
-    this.board = board;
-    this.isBlackTurn = isBlackTurn;
-    this.game_over = false;
-}
-
-// function returning the hash of a board state
-BoardState.prototype.hash = function () {
-    return this.mask ^ this.board ^ (this.isBlackTurn ? 1n : 0n);
-}
-
 let computerPlayer = null;
 let computerStrategy = null;
-let strategyList = [{ strategy: chooseRandomMove, name: "randomly" },
-{ strategy: chooseGreedyMove, name: "greedily" },
-{ strategy: choose_mcts, name: "using MCTS" }]
+let whitePlayer = null;
+
+let strategyList = [{ id: "human", strategy: chooseHumanMove, name: "manually" },
+{ id: "random", strategy: chooseRandomMove, name: "randomly" },
+{ id: "greedy", strategy: chooseGreedyMove, name: "greedily" },
+{ id: "mcts", strategy: choose_mcts, name: "using MCTS" },
+{ id: "mobility", strategy: chooseMobility, name: "using mobility" }]
+let playerList = [{ id: "human", name: "You", isHuman: true, eloRating: 1000 },
+{ id: "random", name: "Randy", isHuman: false, eloRating: 1000 },
+{ id: "greedy", name: "Dietrich", isHuman: false, eloRating: 1000 },
+{ id: "mcts", name: "Monita", isHuman: false, eloRating: 1000 },
+{ id: "mobility", name: "Mabel", isHuman: false, eloRating: 1000 }]
 let rootNode = null;
+
+function write_player_list_to_cookies() {
+    var playerListString = JSON.stringify(playerList);
+    document.cookie = "playerList=" + playerListString;
+}
+
+function read_player_list_from_cookies() {
+    var playerListString = document.cookie.replace(/(?:(?:^|.*;\s*)playerList\s*\=\s*([^;]*).*$)|^.*$/, "$1");
+    if (playerListString) {
+        let tempPlayerList = JSON.parse(playerListString);
+
+        // set the eloRating in playerList to the one in tempPlayerList
+        for (var i = 0; i < playerList.length; i++) {
+            for (var j = 0; j < tempPlayerList.length; j++) {
+                if (playerList[i].id == tempPlayerList[j].id) {
+                    playerList[i].eloRating = tempPlayerList[j].eloRating;
+                }
+            }
+        }
+    }
+}
 
 function clone_board_state(boardState) {
     var bs = new BoardState(boardState.mask, boardState.board, boardState.isBlackTurn);
@@ -25,6 +42,9 @@ function clone_board_state(boardState) {
 }
 
 function new_game() {
+    read_player_list_from_cookies();
+    write_player_list_to_cookies();
+
     var startingMask = (0b11n << 27n) | (0b11n << 35n); // Starting mask
     var startingBoard = (0b10n << 27n) | (0b01n << 35n); // Starting board
     var isBlackTurn = true; // Starting turn indicator
@@ -32,8 +52,20 @@ function new_game() {
     // choose strategy randomly from strategyList
     let strategy = strategyList[Math.floor(Math.random() * strategyList.length)];
 
-    // force MCTS strategy
-    strategy = strategyList[2];
+    // choose a player from the players in playerList where isHuman is false
+    whitePlayer = playerList[Math.floor(Math.random() * playerList.length)];
+    while (whitePlayer.isHuman) {
+        whitePlayer = playerList[Math.floor(Math.random() * playerList.length)];
+    }
+
+    // choose strategy from strategyList with same ID as whitePlayer
+    for (var i = 0; i < strategyList.length; i++) {
+        if (strategyList[i].id == whitePlayer.id) {
+            strategy = strategyList[i];
+            break;
+        }
+    }
+
     computerStrategy = strategy.name;
     computerPlayer = strategy.strategy;
     rootNode = null;
@@ -43,24 +75,37 @@ function new_game() {
 
 var boardState = new_game();
 
-function updateTurnIndicator(localBoardState) {
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function game_loop() {
+    boardState = new_game();
+
     var turnIndicator = document.getElementById("turn_indicator");
 
-    setInterval(function () {
-        if (localBoardState.game_over) {
-            turnIndicator.textContent = "Game over!\n" + win_text(localBoardState);
-        } else if (localBoardState.isBlackTurn) {
+    while (!boardState.game_over) {
+        if (boardState.isBlackTurn) {
+            renderBoard(boardState);
             turnIndicator.textContent = "Black to move";
+            // pause until boardState.isBlackTurn is false
+            while (boardState.isBlackTurn) {
+                await(sleep(100));
+            }
         } else {
-            turnIndicator.textContent = "White moving " + computerStrategy;
-            move = computerPlayer(localBoardState);
+            turnIndicator.textContent = "White to move";
+            renderBoard(boardState);
+            await(sleep(100));
+            move = computerPlayer(boardState);
             if (move) {
-                make_move(localBoardState, move);
-                renderBoard(localBoardState);
+                make_move(boardState, move);
             }
         }
-    }, 1000);
+    }
+
+    turnIndicator.textContent = "Game over!\n" + win_text(boardState);
 }
+
 
 function win_text(localBoardState) {
     const n = who_won(localBoardState);
@@ -93,7 +138,6 @@ function countSetBits(value) {
 
     return count;
 }
-
 
 function removePieceSpaces() {
     var pieceSpaces = document.querySelectorAll(".piece-white, .piece-black");
@@ -177,223 +221,8 @@ function getFlipsForMove(boardState, move) {
     return flips;
 }
 
-// this player chooses a random move from the list of all legal moves
-function chooseRandomMove(localBoardState) {
-    const legalMoves = getLegalMoves(localBoardState);
-
-    if (legalMoves.length === 0) {
-        return null;
-    }
-
-    const randomIndex = Math.floor(Math.random() * legalMoves.length);
-    const chosenMove = legalMoves[randomIndex];
-
-    // what power of 2 is chosenMove?
-    const position = Math.log2(parseInt(chosenMove));
-
-    return position + 1;
-}
-
-// this player chooses the move with the most flips
-function chooseGreedyMove(localBoardState) {
-    const legalMoves = getLegalMoves(localBoardState);
-
-    if (legalMoves.length === 0) {
-        return null;
-    }
-
-    let bestFlips = 0n;
-    let bestMove = null;
-
-    // for each move in legalMoves, call getFlipsForMove
-    // return the move with the most flips
-    for (let i = 0; i < legalMoves.length; i++) {
-        const move = Math.log2(parseInt(legalMoves[i]));
-        const flips = getFlipsForMove(localBoardState, BigInt(move));
-        // let totalFlips be the sum of all the countSetBits in flips
-        // return the move with the most flips
-        let totalFlips = 0n;
-        for (let j = 0; j < flips.length; j++) {
-            totalFlips += countSetBits(flips[j]);
-        }
-
-        if (totalFlips > bestFlips) {
-            bestFlips = totalFlips;
-            bestMove = move;
-        }
-    }
-
-    return bestMove + 1;
-}
-
-// function to get the root node based on the boardState parameter. 
-// If rootNode is null, create a new TreeNode with the boardState parameter as the boardState. 
-// If it is not null, then do a breadth first search of rootNode to find the board state matching 
-// the hash of the parameter
-function getRootNode(boardState) {
-    if (rootNode !== null) {
-        let newHash = boardState.hash();
-        // for each grandchild of rootNode, if the hash of the grandchild's boardState matches the hash of the parameter, return the grandchild node
-        for (let i = 0; i < rootNode.children.length; i++) {
-            for (let j = 0; j < rootNode.children[i].children.length; j++) {
-                if (rootNode.children[i].children[j].boardState.hash() === newHash) {
-                    return rootNode.children[i].children[j];
-                }
-            }
-        }
-    }
-
-    return new TreeNode(boardState, null, null);
-}
-
-function choose_mcts(boardState) {
-
-    // get current time
-    const startTime = Date.now();
-
-    // Create a tree node for the current state
-    rootNode = getRootNode(boardState);
-
-    // Perform Monte Carlo Tree Search for five seconds
-    while (Date.now() - startTime < 7000) {
-
-        let selectedNode = rootNode;
-
-        while (selectedNode.untriedMoves.length === 0 && selectedNode.children.length > 0) {
-            selectedNode = select(selectedNode);
-        }
-
-        while (selectedNode.untriedMoves.length > 0) {
-            selectedNode = expand(selectedNode);
-        }
-
-        // Simulate a random playout from the expanded node
-        const playoutResult = who_won(selectedNode.boardState);
-
-        // Update the tree with the playout result
-        backpropagate(selectedNode, playoutResult);
-    }
-
-    // Choose the best move based on the tree search results
-    return getBestMove(rootNode);
-}
-
-// Helper functions for MCTS steps (select, expand, simulate, backpropagate, getBestMove)
-
-// Tree node class to represent a state in the Monte Carlo Tree Search
-class TreeNode {
-    constructor(boardState, parent, move) {
-        this.boardState = boardState;
-        this.parent = parent;
-        this.children = [];
-        this.wins = 0;
-        this.visits = 0;
-        this.untriedMoves = getLegalMoves(boardState);
-        this.move = move;
-        this.passed = false;
-    }
-}
-
-// Select the best child node using the UCT formula
-function select(node) {
-    const explorationFactor = 4; // Exploration factor (adjust as needed)
-
-    let selectedChild = null;
-    let bestScore = Number.NEGATIVE_INFINITY;
-
-    // Iterate over each child node and calculate their UCT scores
-    for (const child of node.children) {
-        const exploitation = child.wins / child.visits;
-        const exploration = Math.sqrt(Math.log(node.visits) / child.visits);
-        const score = exploitation + explorationFactor * exploration;
-
-        if (score > bestScore) {
-            bestScore = score;
-            selectedChild = child;
-        }
-    }
-
-    return selectedChild;
-}
-
-// Expand the selected node by adding a child node for each legal move
-function expand(node) {
-    const untriedMoves = node.untriedMoves;
-
-    if (untriedMoves.length > 0) {
-        const randomIndex = Math.floor(Math.random() * untriedMoves.length);
-        const selectedMove = untriedMoves[randomIndex];
-
-        // remove selectedMove from untriedMoves
-        untriedMoves.splice(randomIndex, 1);
-
-        let newState = clone_board_state(node.boardState);
-
-        // let x = the integer of selectedMove
-        let x = Math.log2(parseInt(selectedMove));
-        make_move(newState, x + 1);
-
-        const newNode = new TreeNode(newState, node, x + 1);
-        node.children.push(newNode);
-
-        return newNode;
-    }
-
-    return null;
-}
-
-// Simulate a random playout from the expanded node until the game ends
-function simulate(node) {
-    let passes = 0;
-    const localBoardState = clone_board_state(node.boardState);
-
-    while (passes < 2) {
-        let position = chooseRandomMove(localBoardState);
-        if (position === null) {
-            passes++;
-        } else {
-            passes = 0;
-            make_move(localBoardState, position);
-        }
-    }
-
-    return who_won(localBoardState);
-}
-
-// Update the tree with the playout result by backpropagating the result to ancestors
-function backpropagate(node, result) {
-    if (node === null) {
-        return;
-    }
-
-    let localBoardState = node.boardState;
-
-    ++node.visits;
-
-    if (!localBoardState.isBlackTurn && result > 0) {
-        ++node.wins;
-    } else if (localBoardState.isBlackTurn && result < 0) {
-        ++node.wins;
-    }
-
-    backpropagate(node.parent, result);
-}
-
-// Choose the best move based on the tree search results
-function getBestMove(node) {
-    // get max wins from children
-    let maxWins = Number.NEGATIVE_INFINITY;
-    let bestMove = null;
-    let bestNode = null;
-    for (const child of node.children) {
-        if (child.wins > maxWins) {
-            maxWins = child.wins;
-            bestMove = child.move;
-            bestNode = child;
-        }
-    }
-    console.log("Best move: " + bestMove + " with " + maxWins + " wins out of " + bestNode.visits + " visits");
-    return bestMove;
+function chooseHumanMove(boardState) {
+    const legalMoves = getLegalMoves(boardState);
 }
 
 function addMoveListeners() {
@@ -403,7 +232,6 @@ function addMoveListeners() {
         move.addEventListener('click', function () {
             const position = parseInt(move.id.split('_')[1]);
             make_move(boardState, position);
-            renderBoard(boardState);
         });
     });
 }
@@ -427,6 +255,9 @@ function renderBoard(boardState) {
     var board = boardState.board;
     var mask = boardState.mask;
     var reversiBoard = document.getElementById("reversi_board");
+
+    // set #computer_player to the name of the computer player
+    document.getElementById("computer_player").textContent = whitePlayer.name;
 
     removePieceSpaces();
 
@@ -475,7 +306,9 @@ function renderBoard(boardState) {
         }
     }
 
-    addMoveListeners();
+    if (boardState.isBlackTurn) {
+        addMoveListeners();
+    }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -493,14 +326,8 @@ document.addEventListener("DOMContentLoaded", function () {
         space.style.top = (row * 50) + "px";
         space.style.left = (col * 50) + "px";
 
-        // Add click event listener to non-piece spaces
-        space.addEventListener("click", function () {
-            var maskPosition = 1n << BigInt(parseInt(this.id.split("_")[1]) - 1);
-        });
-
         reversiBoard.appendChild(space);
     }
 
-    renderBoard(boardState);
-    updateTurnIndicator(boardState);
+    game_loop();
 });
