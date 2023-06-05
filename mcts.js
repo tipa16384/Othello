@@ -165,7 +165,11 @@ function getBestMove(node) {
             bestNode = child;
         }
     }
-    console.log("Best move: " + bestMove + " with " + maxWins + " wins out of " + bestNode.visits + " visits");
+
+    if (bestMove !== null) {
+        console.log("Best move: " + bestMove + " with " + maxWins + " wins out of " + bestNode.visits + " visits");
+    }
+    
     return bestMove;
 }
 
