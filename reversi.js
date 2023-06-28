@@ -86,6 +86,19 @@ async function game_loop() {
     var turnIndicator = document.getElementById("turn_indicator");
 
     while (!boardState.game_over) {
+        // see if any legal moves
+        if (getLegalMoves(boardState).length === 0) {
+            console.log("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, skipping turn.");
+            boardState.isBlackTurn = !boardState.isBlackTurn;
+            // any legal moves for other player?
+            if (getLegalMoves(boardState).length === 0) {
+                console.log("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, game over.");
+                boardState.game_over = true;
+                renderBoard(boardState);
+                break;
+            }
+        }
+
         if (boardState.isBlackTurn) {
             renderBoard(boardState);
             turnIndicator.textContent = "Black to move";
@@ -263,17 +276,6 @@ function renderBoard(boardState) {
     removePieceSpaces();
 
     var moves = getLegalMoves(boardState);
-
-    // if no moves, flip turn
-    if (moves.length === 0) {
-        boardState.isBlackTurn = !boardState.isBlackTurn;
-        moves = getLegalMoves(boardState);
-    }
-
-    // if still no moves, game over
-    if (moves.length === 0) {
-        boardState.game_over = true;
-    }
 
     for (var i = 1; i <= 64; i++) {
         const pointer = 1n << BigInt(i - 1);
