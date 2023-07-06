@@ -1,3 +1,12 @@
+/**
+ * TO DO list:
+ * 1. Red spot on latest white move
+ * 2. Ability to resign
+ * 3. Ability to start new game
+ * 4. Save scores in cookies
+ * 5. Save moves in database
+ */
+
 let computerPlayer = null;
 let computerStrategy = null;
 let whitePlayer = null;
@@ -80,6 +89,31 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function scrollString(elementId, text, speed) {
+    const element = document.getElementById(elementId);
+    element.innerHTML = ""; // Clear existing content
+  
+    const wrapper = document.createElement("span");
+    wrapper.style.whiteSpace = "nowrap";
+    wrapper.style.overflow = "hidden";
+    wrapper.style.animation = `scrollText ${speed}s linear infinite`;
+  
+    const content = document.createElement("span");
+    content.innerText = text;
+    wrapper.appendChild(content);
+  
+    element.appendChild(wrapper);
+  }
+
+  function setMessage(message) {
+    scrollString("turn_indicator", message, 5);
+}
+
+function new_game_button() {
+    boardState = new_game();
+    renderBoard(boardState);
+}
+
 async function game_loop() {
     boardState = new_game();
 
@@ -88,11 +122,11 @@ async function game_loop() {
     while (!boardState.game_over) {
         // see if any legal moves
         if (getLegalMoves(boardState).length === 0) {
-            console.log("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, skipping turn.");
+            setMessage("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, skipping turn.");
             boardState.isBlackTurn = !boardState.isBlackTurn;
             // any legal moves for other player?
             if (getLegalMoves(boardState).length === 0) {
-                console.log("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, game over.");
+                setMessage("No legal moves for " + (boardState.isBlackTurn ? "black" : "white") + " player, game over.");
                 boardState.game_over = true;
                 renderBoard(boardState);
                 break;
@@ -101,16 +135,16 @@ async function game_loop() {
 
         if (boardState.isBlackTurn) {
             renderBoard(boardState);
-            turnIndicator.textContent = "Black to move";
+            setMessage("Black to move");
             // pause until boardState.isBlackTurn is false
             while (boardState.isBlackTurn) {
                 await(sleep(100));
             }
         } else {
-            turnIndicator.textContent = "White to move";
+            setMessage("White to move");
             renderBoard(boardState);
             await(sleep(100));
-            move = computerPlayer(boardState);
+            let move = computerPlayer(boardState);
             if (move) {
                 make_move(boardState, move);
             }
@@ -269,9 +303,6 @@ function renderBoard(boardState) {
     var board = boardState.board;
     var mask = boardState.mask;
     var reversiBoard = document.getElementById("reversi_board");
-
-    // set #computer_player to the name of the computer player
-    document.getElementById("computer_player").textContent = whitePlayer.name;
 
     removePieceSpaces();
 

@@ -12,45 +12,69 @@
 </head>
 
 <body>
-    <h1>Reversi</h1>
-    <div>
-        <div id="game_container">
-            <div id="boardBoarder">
-                <div class="letters">
-                    <div class="letter">A</div>
-                    <div class="letter">B</div>
-                    <div class="letter">C</div>
-                    <div class="letter">D</div>
-                    <div class="letter">E</div>
-                    <div class="letter">F</div>
-                    <div class="letter">G</div>
-                    <div class="letter">H</div>
+    <table id="game_table">
+        <tr>
+            <td>
+                <span class="titleStyle">Reversi</span>
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td>
+                <div id="game_container">
+                    <div id="boardBoarder">
+                        <div class="letters">
+                            <div class="letter">A</div>
+                            <div class="letter">B</div>
+                            <div class="letter">C</div>
+                            <div class="letter">D</div>
+                            <div class="letter">E</div>
+                            <div class="letter">F</div>
+                            <div class="letter">G</div>
+                            <div class="letter">H</div>
+                        </div>
+                        <div id="reversi_board"></div>
+                        <div class="letters">
+                            <div class="letter">A</div>
+                            <div class="letter">B</div>
+                            <div class="letter">C</div>
+                            <div class="letter">D</div>
+                            <div class="letter">E</div>
+                            <div class="letter">F</div>
+                            <div class="letter">G</div>
+                            <div class="letter">H</div>
+                        </div>
+                    </div>
                 </div>
-                <div id="reversi_board"></div>
-                <div class="letters">
-                    <div class="letter">A</div>
-                    <div class="letter">B</div>
-                    <div class="letter">C</div>
-                    <div class="letter">D</div>
-                    <div class="letter">E</div>
-                    <div class="letter">F</div>
-                    <div class="letter">G</div>
-                    <div class="letter">H</div>
+            </td>
+            <td>
+                <div id="button_container">
+                    <table>
+                        <tr>
+                            <td>
+                                <button id="new_game_button" class="button" onclick="new_game_button()">NEW GAME</button>
+                            </td>
+                            </tr>
+                            <tr>
+                            <td>
+                                <button id="new_game_button" class="button" onclick="new_game_button()">RESIGN</button>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
-            </div>
-        </div>
-        <div id="fun_stuff">
-            <div>
-                <span id="computer_player" class="uxtext">Nobody</span>
-            </div>
-            <div>
-                <span class="uxtext"></span>
-            </div>
-            <div>
-                <span id="turn_indicator" class="uxtext">Current Turn</span>
-            </div>
-        </div>
-    </div>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                <div id="fun_stuff">
+                    <div>
+                        <span id="turn_indicator" class="uxtext">Current Turn</span>
+                    </div>
+                </div>
+            </td>
+            <td></td>
+        </tr>
+    </table>
 </body>
 
 </html>
