@@ -111,6 +111,14 @@ def notation_to_board(notation):
 
     return board
 
+def count_pieces(board, player):
+    count = 0
+    for row in range(8):
+        for col in range(8):
+            if board[row][col] == player:
+                count += 1
+    return count
+
 def print_board_old(board):
     print("  A B C D E F G H")
     print(" +-+-+-+-+-+-+-+-+")
@@ -156,6 +164,7 @@ def get_legal_moves(notation):
 
     # Get valid moves for the current player
     valid_moves = get_valid_moves_for_player(board, current_player)
+    player_passed = False
 
     # Check if the game is over
     game_over = False
@@ -166,6 +175,7 @@ def get_legal_moves(notation):
             game_over = True
         else:
             current_player = last_player
+            player_passed = True
 
     # Add data to the response dictionary
     response["annotation"] = notation
@@ -173,6 +183,9 @@ def get_legal_moves(notation):
     response["board"] = board
     response["valid_moves"] = valid_moves
     response["game_over"] = game_over
+    response["black_score"] = count_pieces(board, BLACK)
+    response["white_score"] = count_pieces(board, WHITE)
+    response["player_passed"] = player_passed
 
     return response
 
@@ -181,12 +194,22 @@ def get_legal_moves_json(notation):
     return json.dumps(response)
 
 if __name__ == "__main__":
-    notation = "D3c5D6e3F4c6F5c3C4b5B4"
+    notation = "D3c5D6e3F4c6F5c3C4b5E2e6D2f6B3g5B4g3"
     response = get_legal_moves(notation)
     print_board(response["board"])
     print("Current player: " + response["current_player"])
     print("Annotation: " + response["annotation"])
     print("Valid moves: " + str(response["valid_moves"]))
-    print("Game over: " + str(response["game_over"]))
+    if response["game_over"]:
+        print ("The game is over.")
+        if response["black_score"] > response["white_score"]:
+            print("Black wins!")
+        elif response["white_score"] > response["black_score"]:
+            print("White wins!")
+        else:
+            print("It's a tie!")
+    if response["player_passed"]:
+        print("The current player had no valid moves and has automatically passed.")
+    print("Black and white scores: " + str(response["black_score"]) + ", " + str(response["white_score"]))
 
 
