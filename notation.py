@@ -1,8 +1,8 @@
 import json
 
-black = 'b'
-white = 'w'
-empty = '.'
+BLACK = 'X'
+WHITE = 'O'
+EMPTY = '.'
 
 def calculate_pieces_to_flip(board, row, col, player):
     # Check if the specified position is within the bounds of the board
@@ -11,7 +11,7 @@ def calculate_pieces_to_flip(board, row, col, player):
         return None
 
     # Check if the specified position is already occupied
-    if board[row][col] != empty:
+    if board[row][col] != EMPTY:
         # print("Invalid move: Position is already occupied.")
         return None
 
@@ -26,7 +26,7 @@ def calculate_pieces_to_flip(board, row, col, player):
         r, c = row + dr, col + dc
         temp_pieces_to_flip = []
 
-        while 0 <= r < 8 and 0 <= c < 8 and board[r][c] != empty and board[r][c] != player:
+        while 0 <= r < 8 and 0 <= c < 8 and board[r][c] != EMPTY and board[r][c] != player:
             temp_pieces_to_flip.append((r, c))
             r += dr
             c += dc
@@ -37,9 +37,9 @@ def calculate_pieces_to_flip(board, row, col, player):
     return pieces_to_flip if pieces_to_flip else None
 
 def move_to_notation(row, col, player):
-    if player == black:
+    if player == BLACK:
         col_char = chr(col + ord('A'))
-    elif player == white:
+    elif player == WHITE:
         col_char = chr(col + ord('a'))
     else:
         return None  # Invalid player
@@ -62,13 +62,6 @@ def get_valid_moves_for_player(board, player):
 
     return valid_moves if valid_moves else None
 
-def get_valid_moves(board, player):
-    moves = get_valid_moves_for_player(board, player)
-    if not moves:
-        player = flip_player(player)
-        moves = get_valid_moves_for_player(board, player)
-    return moves
-
 def make_move(board, row, col, player):
     pieces_to_flip = calculate_pieces_to_flip(board, row, col, player)
 
@@ -85,17 +78,17 @@ def make_move(board, row, col, player):
         board[r][c] = player
 
 def flip_player(player):
-    return black if player == white else white
+    return BLACK if player == WHITE else WHITE
 
 def notation_to_board(notation):
-    # Initialize the board as an 8x8 grid with empty spaces denoted by '.'
-    board = [[empty for _ in range(8)] for _ in range(8)]
+    # Initialize the board as an 8x8 grid with EMPTY spaces denoted by '.'
+    board = [[EMPTY for _ in range(8)] for _ in range(8)]
 
     # set starting positions
-    board[3][3] = white
-    board[3][4] = black
-    board[4][3] = black
-    board[4][4] = white
+    board[3][3] = WHITE
+    board[3][4] = BLACK
+    board[4][3] = BLACK
+    board[4][4] = WHITE
 
     # Split the notation string into moves of length 2
     moves = [notation[i:i+2] for i in range(0, len(notation), 2)]
@@ -103,22 +96,22 @@ def notation_to_board(notation):
     # Iterate through the moves
     for move in moves:
         if move[0].isalpha() and move[0].islower():
-            # It's a white move
+            # It's a WHITE move
             row = int(move[1]) - 1
             col = ord(move[0]) - ord('a')
-            make_move(board, row, col, white)
+            make_move(board, row, col, WHITE)
         elif move[0].isalpha() and move[0].isupper():
-            # It's a black move
+            # It's a BLACK move
             row = int(move[1]) - 1
             col = ord(move[0]) - ord('A')
-            make_move(board, row, col, black)
+            make_move(board, row, col, BLACK)
         else:
             # Invalid move notation, log an error
             print("Invalid move notation: " + move)
 
     return board
 
-def print_board(board):
+def print_board_old(board):
     print("  A B C D E F G H")
     print(" +-+-+-+-+-+-+-+-+")
     for row in range(8):
@@ -127,20 +120,28 @@ def print_board(board):
             print(board[row][col], end="|")
         print("\n +-+-+-+-+-+-+-+-+")
 
+def print_board(board):
+    print("   A B C D E F G H")
+    for row in range(8):
+        print(row + 1, end="  ")
+        for col in range(8):
+            print(board[row][col], end=" ")
+        print()
+
 def identify_last_player(notation):
     if not notation:
-        return white  # If the notation is empty, assume white moved last
+        return WHITE  # If the notation is EMPTY, assume WHITE moved last
 
     last_move = notation[-2]  # Get the last character of the notation
 
     if last_move.islower():
-        return white
+        return WHITE
     elif last_move.isupper():
-        return black
+        return BLACK
     else:
         return None  # Invalid notation
 
-def get_legal_moves_json(notation):
+def get_legal_moves(notation):
     # Create a dictionary to store the response data
     response = {}
 
@@ -167,16 +168,25 @@ def get_legal_moves_json(notation):
             current_player = last_player
 
     # Add data to the response dictionary
+    response["annotation"] = notation
     response["current_player"] = current_player
     response["board"] = board
     response["valid_moves"] = valid_moves
     response["game_over"] = game_over
 
-    # Convert the response dictionary to a JSON string
+    return response
+
+def get_legal_moves_json(notation):
+    response = get_legal_moves(notation)
     return json.dumps(response)
 
-# Example usage:
-notation = "D3c5"
-response_json = get_legal_moves_json(notation)
-print(response_json)
+if __name__ == "__main__":
+    notation = "D3c5D6e3F4c6F5c3C4b5B4"
+    response = get_legal_moves(notation)
+    print_board(response["board"])
+    print("Current player: " + response["current_player"])
+    print("Annotation: " + response["annotation"])
+    print("Valid moves: " + str(response["valid_moves"]))
+    print("Game over: " + str(response["game_over"]))
+
 
