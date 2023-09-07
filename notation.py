@@ -1,8 +1,22 @@
 import json
+import sqlite3
+import os
 
 BLACK = 'X'
 WHITE = 'O'
 EMPTY = '.'
+MOVE_DB = 'othello.db'
+DB_CONNECTION = None
+
+def get_move_db():
+    global DB_CONNECTION
+    if not DB_CONNECTION:
+        db_created = os.path.exists(MOVE_DB)
+        DB_CONNECTION = sqlite3.connect(MOVE_DB)
+        cur = DB_CONNECTION.cursor()
+        if not db_created:
+            cur.execute("CREATE TABLE moves(notation, moves)")
+    return DB_CONNECTION
 
 def calculate_pieces_to_flip(board, row, col, player):
     # Check if the specified position is within the bounds of the board
@@ -46,7 +60,7 @@ def move_to_notation(row, col, player):
 
     row_number = str(row + 1)
 
-    return col_char + row_number
+    return { 'm': col_char + row_number, 'w': 0, 't': 0 }
 
 
 def get_valid_moves_for_player(board, player):
@@ -149,6 +163,22 @@ def identify_last_player(notation):
     else:
         return None  # Invalid notation
 
+def get_valid_moves_from_db(notation):
+    conn = get_move_db()
+    cur = conn.cursor()
+    cur.execute("SELECT moves FROM moves WHERE notation=?", (notation,))
+    row = cur.fetchone()
+    if row:
+        return json.loads(row[0])
+    else:
+        return None
+
+def write_valid_moves_to_db(notation, valid_moves):
+    conn = get_move_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO moves VALUES (?, ?)", (notation, json.dumps(valid_moves)))
+    conn.commit()
+
 def get_legal_moves(notation):
     # Create a dictionary to store the response data
     response = {}
@@ -163,7 +193,14 @@ def get_legal_moves(notation):
     current_player = flip_player(last_player)
 
     # Get valid moves for the current player
-    valid_moves = get_valid_moves_for_player(board, current_player)
+    hit_db = False
+    valid_moves = get_valid_moves_from_db(notation)
+    if not valid_moves:
+        valid_moves = get_valid_moves_for_player(board, current_player)
+        write_valid_moves_to_db(notation, valid_moves)
+    else:
+        hit_db = True
+
     player_passed = False
 
     # Check if the game is over
@@ -186,30 +223,10 @@ def get_legal_moves(notation):
     response["black_score"] = count_pieces(board, BLACK)
     response["white_score"] = count_pieces(board, WHITE)
     response["player_passed"] = player_passed
+    response["hit_db"] = hit_db
 
     return response
 
 def get_legal_moves_json(notation):
     response = get_legal_moves(notation)
     return json.dumps(response)
-
-if __name__ == "__main__":
-    notation = "D3c5D6e3F4c6F5c3C4b5E2e6D2f6B3g5B4g3"
-    response = get_legal_moves(notation)
-    print_board(response["board"])
-    print("Current player: " + response["current_player"])
-    print("Annotation: " + response["annotation"])
-    print("Valid moves: " + str(response["valid_moves"]))
-    if response["game_over"]:
-        print ("The game is over.")
-        if response["black_score"] > response["white_score"]:
-            print("Black wins!")
-        elif response["white_score"] > response["black_score"]:
-            print("White wins!")
-        else:
-            print("It's a tie!")
-    if response["player_passed"]:
-        print("The current player had no valid moves and has automatically passed.")
-    print("Black and white scores: " + str(response["black_score"]) + ", " + str(response["white_score"]))
-
-
