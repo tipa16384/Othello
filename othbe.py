@@ -32,19 +32,14 @@ def _build_cors_preflight_response():
     response.headers.add("Access-Control-Allow-Methods", "*")
     return response
 
-# make an OPTIONS endpoint with path /othello
-@app.route("/othello/bestmove", methods=["OPTIONS"])
-def _build_cors_preflight_response_2():
-    response = make_response()
-    response.headers.add("Access-Control-Allow-Origin", "*")
-    response.headers.add("Access-Control-Allow-Headers", "*")
-    response.headers.add("Access-Control-Allow-Methods", "*")
-    return response
-
-
 # make an endpoint with path /othello
 @app.route("/othello", methods=["GET"])
 def othello():
+    do_best = request.args.get("bestmove", default=False, type=bool)
+    
+    if do_best:
+        return bestmove()
+    
     notation = request.args.get("notation", default="", type=str)
     # set up a new game
     game_state = get_legal_moves(notation)
@@ -53,8 +48,6 @@ def othello():
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
 
-# make an endpoint with path /othello/bestmove
-@app.route("/othello/bestmove", methods=["GET"])
 def bestmove():
     notation = request.args.get("notation", default="", type=str)
     game_state = get_legal_moves(notation)
