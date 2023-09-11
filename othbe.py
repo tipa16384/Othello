@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify, make_response
 from scorer import Scorer
 from notation import get_legal_moves, flip_player
-
+from openings import OPENINGS
+import random
 
 # initialize flask
 app = Flask(__name__)
@@ -55,20 +56,47 @@ def bestmove():
         response = jsonify({"best_move": None})
         response.headers.add("Access-Control-Allow-Origin", "*")
         return response
-    current_player = game_state["current_player"]
+    
+    best_move, opening_name = find_openings(notation)
     move_scores = {}
-    for m in game_state["valid_moves"]:
-        new_notation = notation + m
-        game_state = get_legal_moves(new_notation)
-        current_player_score = computer_player.score(game_state["board"], current_player)
-        opponent_score = computer_player.score(game_state["board"], flip_player(current_player))
-        move_scores[m] = current_player_score - opponent_score
-    best_move = max(move_scores, key=move_scores.get)
+    
+    if not best_move:
+        current_player = game_state["current_player"]
+        for m in game_state["valid_moves"]:
+            new_notation = notation + m
+            game_state = get_legal_moves(new_notation)
+            current_player_score = computer_player.score(game_state["board"], current_player)
+            opponent_score = computer_player.score(game_state["board"], flip_player(current_player))
+            move_scores[m] = current_player_score - opponent_score
+        best_move = max(move_scores, key=move_scores.get)
+    
     move_scores["best_move"] = best_move
+    move_scores["opening_name"] = opening_name
     response = jsonify(move_scores)
     response.headers.add("Access-Control-Allow-Origin", "*")
     return response
 
+
+def find_openings(notation):
+    # make a list of openings that start with notation but are longer than notation
+    openings = []
+    for opening in OPENINGS:
+        if opening.startswith(notation) and len(opening) > len(notation):
+            openings.append(opening)
+    # if no opening, return None
+    if len(openings) == 0:
+        return (None, None)
+    # choose a random opening
+    opening = random.choice(openings)
+    best_move = opening[len(notation):len(notation)+2]
+    # name of the opening is the shortest opening that starts with notation + opening
+    matching_openings = [o for o in OPENINGS if o.startswith(notation + best_move)]
+    opening_name = min(matching_openings, key=len)
+    
+    print ("Returning opening ", OPENINGS[opening_name])
+    # return the two characters that follow notation
+    return (best_move, OPENINGS[opening_name])
+        
 
 # start the app
 if __name__ == "__main__":
