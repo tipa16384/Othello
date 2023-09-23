@@ -119,14 +119,14 @@ class Scorer:
             if board[x_square[0]][x_square[1]] == current_player:
                 corner = X_TO_CORNER[x_square]
                 if board[corner[0]][corner[1]] == EMPTY:
-                    score += self.x_weight
+                    score -= self.x_weight
         
         # subtract c_weight for each 'C' square near a blank corner
         for c_square in C_SQUARES:
             if board[c_square[0]][c_square[1]] == current_player:
                 corner = C_TO_CORNER[c_square]
                 if board[corner[0]][corner[1]] == EMPTY:
-                    score += self.c_weight
+                    score -= self.c_weight
 
         # add piece_weight for each piece held
         for row in range(8):

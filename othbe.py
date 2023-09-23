@@ -14,13 +14,13 @@ computer_player = None
 
 def make_computer_player():
     computer = Scorer("Walter53")
-    computer.c_weight = -20
+    computer.c_weight = 20
     computer.corner_weight = 10
-    computer.frontier_weight = -3
+    computer.frontier_weight = 1
     computer.move_weight = 2
     computer.piece_weight = 0
-    computer.stable_weight = 5
-    computer.x_weight = -30
+    computer.stable_weight = 1
+    computer.x_weight = 30
     computer.dump_weights()
     return computer
 
