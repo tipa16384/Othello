@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify, make_response
-from scorer import Scorer
+from scorer import *
 from notation import get_legal_moves, flip_player
 from openings import OPENINGS
 import random
+from playerfile import choose_last_player
 
 # initialize flask
 app = Flask(__name__)
@@ -12,16 +13,19 @@ app.config["JSONIFY_MIMETYPE"] = "application/json;charset=utf-8"
 
 computer_player = None
 
+# Heather61
+# 0.24547093234841766
+# 0.6893272017767724
+# 0.9416892954338969
+# 0.1684839961656034
+# 0.07363285005254983
+# 0.008688289724121612
+# 0.0350523351133627
+
+
 def make_computer_player():
-    computer = Scorer("Walter53")
-    computer.c_weight = 20
-    computer.corner_weight = 10
-    computer.frontier_weight = 1
-    computer.move_weight = 2
-    computer.piece_weight = 0
-    computer.stable_weight = 1
-    computer.x_weight = 30
-    computer.dump_weights()
+    computer = choose_last_player()
+    print ("Computer player is", computer.name)
     return computer
 
 # make an OPTIONS endpoint with path /othello
@@ -58,6 +62,7 @@ def bestmove():
         return response
     
     best_move, opening_name = find_openings(notation)
+    print ("Best move", best_move, "opening name", opening_name)
     move_scores = {}
     
     if not best_move:
@@ -66,9 +71,11 @@ def bestmove():
             new_notation = notation + m
             game_state = get_legal_moves(new_notation)
             current_player_score = computer_player.score(game_state["board"], current_player)
-            opponent_score = computer_player.score(game_state["board"], flip_player(current_player))
-            move_scores[m] = current_player_score - opponent_score
+            print ("Move", m, "score", current_player_score)
+            move_scores[m] = current_player_score
         best_move = max(move_scores, key=move_scores.get)
+        print ("Best move", best_move)
+        print ()
     
     move_scores["best_move"] = best_move
     move_scores["opening_name"] = opening_name

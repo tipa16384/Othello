@@ -15,33 +15,66 @@ C_TO_CORNER = {(0, 1): (0, 0), (1, 0): (0, 0), (0, 6): (0, 7), (1, 7): (0, 7),
 
 DIRECTIONS = [(-1, -1), (-1, 0), (-1, 1), (0, -1)]
 
+CORNER_WEIGHT_INDEX = 0
+X_WEIGHT_INDEX = 1
+C_WEIGHT_INDEX = 2
+STABLE_WEIGHT_INDEX = 3
+PIECE_WEIGHT_INDEX = 4
+FRONTIER_WEIGHT_INDEX = 5
+MOVE_WEIGHT_INDEX = 6
+NUM_WEIGHTS = 7
+
+FILE_NAME = "players.txt"
+
+# list of 50 common first names for both boys and girls
+FIRST_NAMES = [
+    "Emma", "Olivia", "Ava", "Isabella", "Sophia", "Charlotte", "Mia", "Amelia", "Harper", "Evelyn",
+    "Liam", "Noah", "William", "James", "Oliver", "Benjamin", "Elijah", "Lucas", "Mason", "Logan",
+    "Jacob", "Michael", "Ethan", "Daniel", "Henry", "Jackson", "Sebastian", "Aiden", "Matthew", "Samuel",
+    "David", "Joseph", "Carter", "Owen", "Wyatt", "John", "Jack", "Luke", "Jayden", "Dylan",
+    "Grayson", "Levi", "Isaac", "Gabriel", "Julian", "Mateo", "Anthony", "Jaxon", "Lincoln", "Joshua",
+    "Andrew", "Allyson", "Shannon", "Lynn", "Brenda", "Tom", "Beatrice", "David", "Clara",
+    "Eleanor", "Joan", "Clyde", "Lester", "Elizabeth", "Paul", "Richard", "Jane", "Deborah", "Edna",
+    "Hillary", "Atticus", "Brian", "Jennifer", "Jazzmin", "Vallerie", "Ellie", "Ilsa", "Arnie",
+    "Heather", "Adam", "Judy", "Corwin", "Katherine", "Lochinvar", "Nostromo", "Lannister", "Whitten"
+]
+
+# function to return a random name with a random integer appended
+def get_random_name():
+    return random.choice(FIRST_NAMES) + str(random.randint(1, 100))
+
 class Scorer:
-    def __init__(self, name):
-        self.name = name
-        # all values are a random number between 0 and 1
-        # weight for holding a corner
-        self.corner_weight = random.random()
-        # weight for the 'X' square near a blank corner (negative)
-        self.x_weight = random.random()
-        # weight for the 'C' square near a blank corner (negative)
-        self.c_weight = random.random()
-        # weight for a stable piece that isn't a corner
-        self.stable_weight = random.random()
-        # weight for number of pieces
-        self.piece_weight = random.random()
-        # weight for frontier pieces (negative)
-        self.frontier_weight = random.random()
-        # weight for number of available moves
-        self.move_weight = random.random()
+    def __init__(self, name=None):
+
+        self.name = name if name else get_random_name()
+        
+        # weights is an array of NUM_WEIGHTS random numbers
+        self.weights = [random.random() for _ in range(NUM_WEIGHTS)]
 
     def dump_weights(self):
-        print("corner_weight: " + str(self.corner_weight))
-        print("x_weight: " + str(self.x_weight))
-        print("c_weight: " + str(self.c_weight))
-        print("stable_weight: " + str(self.stable_weight))
-        print("piece_weight: " + str(self.piece_weight))
-        print("frontier_weight: " + str(self.frontier_weight))
-        print("move_weight: " + str(self.move_weight))
+        print("name: " + self.name)
+        print("corner_weight: " + str(self.weights[CORNER_WEIGHT_INDEX]))
+        print("x_weight: " + str(self.weights[X_WEIGHT_INDEX]))
+        print("c_weight: " + str(self.weights[C_WEIGHT_INDEX]))
+        print("stable_weight: " + str(self.weights[STABLE_WEIGHT_INDEX]))
+        print("piece_weight: " + str(self.weights[PIECE_WEIGHT_INDEX]))
+        print("frontier_weight: " + str(self.weights[FRONTIER_WEIGHT_INDEX]))
+        print("move_weight: " + str(self.weights[MOVE_WEIGHT_INDEX]))
+        print()
+    
+    def dump_weights_to_file(self):
+        # open file for appending
+        with open(FILE_NAME, "a") as f:
+            # write name and weights to file
+            f.write(self.name + "\n")
+            f.write(str(self.weights[CORNER_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[X_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[C_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[STABLE_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[PIECE_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[FRONTIER_WEIGHT_INDEX]) + "\n")
+            f.write(str(self.weights[MOVE_WEIGHT_INDEX]) + "\n")
+            f.write("\n")
     
     def is_stable_direction(self, board, current_player, piece_pos, direction):
         # return True if there are only player pieces or the edge of the board in this direction
@@ -74,82 +107,70 @@ class Scorer:
         #print ("safe_direction return")
         return 0 <= r < 8 and 0 <= c < 8 and board[r][c] == opponent_player
 
-    def find_stability(self, board, current_player):
+    def find_stability(self, board):
         # make map with key being position of piece and value being a map with DIRECTIONS as keys and value False
         #print ("find_stability current player {}".format(current_player))
-        stability_map = {}
+        instability_map = {}
         for row in range(8):
             for col in range(8):
-                if board[row][col] == current_player:
-                    stability_map[(row, col)] = {}
+                if board[row][col] != EMPTY:
+                    instability_map[(row, col)] = {}
                     for direction in DIRECTIONS:
-                        stability_map[(row, col)][direction] = False
+                        instability_map[(row, col)][direction] = False
 
         # iterate through each piece on the board
-        for piece_pos in stability_map:
+        for piece_pos in instability_map:
+            stable_piece_color = board[piece_pos[0]][piece_pos[1]]
             # iterate through each direction
-            for direction in stability_map[piece_pos]:
+            for direction in instability_map[piece_pos]:
                 # are there only player pieces or the edge of the board in this direction?
-                if self.is_stable_direction(board, current_player, piece_pos, direction) or \
-                    self.is_stable_direction(board, current_player, piece_pos, (-direction[0], -direction[1])):
-                    stability_map[piece_pos][direction] = True
-                elif self.safe_direction(board, current_player, piece_pos, direction) and \
-                    self.safe_direction(board, current_player, piece_pos, (-direction[0], -direction[1])):
-                    stability_map[piece_pos][direction] = True
+                if self.is_stable_direction(board, stable_piece_color, piece_pos, direction) or \
+                    self.is_stable_direction(board, stable_piece_color, piece_pos, (-direction[0], -direction[1])):
+                    instability_map[piece_pos][direction] = True
+                elif self.safe_direction(board, stable_piece_color, piece_pos, direction) and \
+                    self.safe_direction(board, stable_piece_color, piece_pos, (-direction[0], -direction[1])):
+                    instability_map[piece_pos][direction] = True
+        
+        # stablity_map is a dict with key being position and value being True if all four of the directions in the corresponding instability_map is True
+        stability_map = {}
+        for piece_pos in instability_map:
+            stable_directions = sum(1 for direction in instability_map[piece_pos] if instability_map[piece_pos][direction])
+            stability_map[piece_pos] = stable_directions == 4
 
         #print ("Returning stability_map")
 
         return stability_map                    
 
     def score(self, board, current_player):
+        stability_map = self.find_stability(board)
+
         score = 0
-        num_corners = 0
 
         # add corner_weight for each corner held
-        sum = 0
-        for corner in CORNERS:
-            if board[corner[0]][corner[1]] == current_player:
-                sum += self.corner_weight
-                num_corners += 1
-        score += sum
+        xsum = sum(self.weights[CORNER_WEIGHT_INDEX] for corner in CORNERS if board[corner[0]][corner[1]] == current_player)
+        score += xsum
 
-        # subtract x_weight for each 'X' square near a blank corner
-        sum = 0
-        for x_square in X_SQUARES:
-            if board[x_square[0]][x_square[1]] == current_player:
-                corner = X_TO_CORNER[x_square]
-                if board[corner[0]][corner[1]] == EMPTY:
-                    score -= self.x_weight
-        
-        # subtract c_weight for each 'C' square near a blank corner
-        for c_square in C_SQUARES:
-            if board[c_square[0]][c_square[1]] == current_player:
-                corner = C_TO_CORNER[c_square]
-                if board[corner[0]][corner[1]] == EMPTY:
-                    score -= self.c_weight
+        # subtract x_weight for each unstable 'X' square near a blank corner
+        xsum = sum(self.weights[X_WEIGHT_INDEX] for x_square in X_SQUARES if board[x_square[0]][x_square[1]] == current_player and not stability_map[x_square])
+        score -= xsum
 
-        # add piece_weight for each piece held
-        for row in range(8):
-            for col in range(8):
-                if board[row][col] == current_player:
-                    score += self.piece_weight
+        # subtract c_weight for each unstable 'C' square near a blank corner
+        xsum = sum(self.weights[C_WEIGHT_INDEX] for c_square in C_SQUARES if board[c_square[0]][c_square[1]] == current_player and not stability_map[c_square])
+        score -= xsum
 
         # add move_weight for each available move
         valid_moves = get_valid_moves_for_player(board, current_player)
         if valid_moves:
-            score += len(valid_moves) * self.move_weight
+            score += len(valid_moves) * self.weights[MOVE_WEIGHT_INDEX]
+        
+        # subtract move_weight for each available move for the opponent
+        valid_moves = get_valid_moves_for_player(board, flip_player(current_player))
+        if valid_moves:
+            score -= 2 * len(valid_moves) * self.weights[MOVE_WEIGHT_INDEX]
 
-        stability_map = self.find_stability(board, current_player)
-        #print ("stability_map {}".format(stability_map))
-        #self.print_stability_map(stability_map)
-        # for each stable piece, count Trues in the direction map
-        for piece_pos in stability_map:
-            #print ("piece_pos {} stability_map[piece_pos] {}".format(piece_pos, stability_map[piece_pos]))
-            count = self.count_stable_directions(stability_map, piece_pos)
-            if count == 4:
-                score += self.stable_weight
-            else:
-                score -= (4 - count) * self.frontier_weight
+        # subtract FRONTIER_WEIGHT for each unstable piece of my own
+        xsum = sum(self.weights[FRONTIER_WEIGHT_INDEX] for row in range(8) for col in range(8) if board[row][col] == current_player and not stability_map[(row, col)])
+        score -= xsum
 
         return score
     
